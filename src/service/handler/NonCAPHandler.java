@@ -1,5 +1,7 @@
 package service.handler;
 
+import message.noncap.Request;
+import message.noncap.Acknowledgement;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -14,22 +16,21 @@ import java.util.logging.Logger;
 
 import message.Operation;
 import service.Config;
-import message.nonpov.*;
 import utility.Utils;
 
 /**
  *
  * @author Scott
  */
-public class NonPOVHandler implements ConnectionHandler {
+public class NonCAPHandler implements ConnectionHandler {
     public static final File REQ_ATTESTATION;
     public static final File ACK_ATTESTATION;
     
     private static final ReentrantLock LOCK;
     
     static {
-        REQ_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/service-provider/nonpov.req");
-        ACK_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/service-provider/nonpov.ack");
+        REQ_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/service-provider/noncap.req");
+        ACK_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/service-provider/noncap.ack");
         
         LOCK = new ReentrantLock();
     }
@@ -37,7 +38,7 @@ public class NonPOVHandler implements ConnectionHandler {
     private final Socket socket;
     private final KeyPair keyPair;
     
-    public NonPOVHandler(Socket socket, KeyPair keyPair) {
+    public NonCAPHandler(Socket socket, KeyPair keyPair) {
         this.socket = socket;
         this.keyPair = keyPair;
     }
@@ -122,7 +123,7 @@ public class NonPOVHandler implements ConnectionHandler {
             
             socket.close();
         } catch (IOException | SignatureException ex) {
-            Logger.getLogger(NonPOVHandler.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(NonCAPHandler.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             if (LOCK != null) {
                 LOCK.unlock();

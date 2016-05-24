@@ -1,5 +1,7 @@
 package client;
 
+import message.noncap.Request;
+import message.noncap.Acknowledgement;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -19,29 +21,28 @@ import java.util.logging.Logger;
 
 import message.Operation;
 import message.OperationType;
-import message.nonpov.*;
 import service.Config;
-import service.handler.NonPOVHandler;
+import service.handler.NonCAPHandler;
 import utility.Utils;
 
 /**
  *
  * @author Scott
  */
-public class NonPOVClient extends Client {
+public class NonCAPClient extends Client {
     private static final File REQ_ATTESTATION;
     private static final File ACK_ATTESTATION;
     private static final Logger LOGGER;
     
     static {
-        REQ_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/client/nonpov.req");
-        ACK_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/client/nonpov.ack");
-        LOGGER = Logger.getLogger(NonPOVClient.class.getName());
+        REQ_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/client/noncap.req");
+        ACK_ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/client/noncap.ack");
+        LOGGER = Logger.getLogger(NonCAPClient.class.getName());
     }
     
-    public NonPOVClient(KeyPair keyPair, KeyPair spKeyPair) {
+    public NonCAPClient(KeyPair keyPair, KeyPair spKeyPair) {
         super(Config.SERVICE_HOSTNAME,
-              Config.NONPOV_SERVICE_PORT,
+              Config.NONCAP_SERVICE_PORT,
               keyPair,
               spKeyPair,
               1);
@@ -72,9 +73,9 @@ public class NonPOVClient extends Client {
         switch (op.getType()) {
             case AUDIT:
                 File tmp_req_attestation = new File(Config.DOWNLOADS_DIR_PATH
-                    + '/' + NonPOVHandler.REQ_ATTESTATION.getPath() + ".audit");
+                    + '/' + NonCAPHandler.REQ_ATTESTATION.getPath() + ".audit");
                 File tmp_ack_attestation = new File(Config.DOWNLOADS_DIR_PATH
-                    + '/' + NonPOVHandler.ACK_ATTESTATION.getPath() + ".audit");
+                    + '/' + NonCAPHandler.ACK_ATTESTATION.getPath() + ".audit");
 
                 Utils.receive(in, tmp_req_attestation);
                 Utils.receive(in, tmp_ack_attestation);
@@ -138,9 +139,9 @@ public class NonPOVClient extends Client {
         execute(new Operation(OperationType.AUDIT, "", ""));
         
         File reqAuditFile = new File(Config.DOWNLOADS_DIR_PATH + '/'
-            + NonPOVHandler.REQ_ATTESTATION.getPath() + ".audit");
+            + NonCAPHandler.REQ_ATTESTATION.getPath() + ".audit");
         File ackAuditFile = new File(Config.DOWNLOADS_DIR_PATH + '/'
-            + NonPOVHandler.ACK_ATTESTATION.getPath() + ".audit");
+            + NonCAPHandler.ACK_ATTESTATION.getPath() + ".audit");
         
         time = System.currentTimeMillis();
         boolean reqAudit = audit(Request.class,
