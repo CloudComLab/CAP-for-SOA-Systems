@@ -41,7 +41,7 @@ public class CSNClient extends Client {
               Config.CSN_SERVICE_PORT,
               keyPair,
               spKeyPair,
-              1);
+              false);
         
         this.csn = 1;
     }
@@ -97,10 +97,8 @@ public class CSNClient extends Client {
 
                 break;
         }
-
-        long start = System.currentTimeMillis();
+        
         Utils.write(ATTESTATION, ack.toString() + '\n');
-        super.attestationCollectTime += System.currentTimeMillis() - start;
     }
 
     @Override

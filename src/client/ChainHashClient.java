@@ -41,7 +41,7 @@ public class ChainHashClient extends Client {
               Config.CHAINHASH_SERVICE_PORT,
               keyPair,
               spKeyPair,
-              Config.NUM_PROCESSORS);
+              false);
         
         this.lastChainHash = Config.DEFAULT_CHAINHASH;
     }
@@ -105,9 +105,7 @@ public class ChainHashClient extends Client {
                 break;
         }
 
-        long start = System.currentTimeMillis();
         Utils.write(ATTESTATION, ack.toString());
-        this.attestationCollectTime += System.currentTimeMillis() - start;
     }
 
     @Override

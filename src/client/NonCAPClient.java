@@ -45,15 +45,13 @@ public class NonCAPClient extends Client {
               Config.NONCAP_SERVICE_PORT,
               keyPair,
               spKeyPair,
-              1);
+              true);
     }
     
     @Override
     protected void hook(Operation op, Socket socket, DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
         Request req = new Request(op);
-
-        req.sign(keyPair);
 
         Utils.send(out, req.toString());
 
@@ -62,10 +60,6 @@ public class NonCAPClient extends Client {
         }
 
         Acknowledgement ack = Acknowledgement.parse(Utils.receive(in));
-
-        if (!ack.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("ACK validation failure");
-        }
 
         String result = ack.getResult();
         String digest = "";
@@ -106,10 +100,8 @@ public class NonCAPClient extends Client {
             result = "download file digest mismatch";
         }
 
-        long start = System.currentTimeMillis();
         Utils.append(REQ_ATTESTATION, req.toString() + '\n');
         Utils.append(ACK_ATTESTATION, ack.toString() + '\n');
-        this.attestationCollectTime += System.currentTimeMillis() - start;
     }
     
     @Override
@@ -193,17 +185,9 @@ public class NonCAPClient extends Client {
                     break;
                 } else if (s1.compareTo(s2) != 0) {
                     success = false;
-                } else {                
-                    Object o1 = parse.invoke(null, s1);
-                    Object o2 = parse.invoke(null, s2);
-
-                    success &= (boolean) validate.invoke(o1, key);
-                    success &= (boolean) validate.invoke(o2, key);
                 }
             }
-        } catch (IOException | NoSuchMethodException | SecurityException
-               | IllegalAccessException | IllegalArgumentException
-               | InvocationTargetException ex) {
+        } catch (IOException | NoSuchMethodException | SecurityException ex) {
             success = false;
             
             LOGGER.log(Level.SEVERE, null, ex);

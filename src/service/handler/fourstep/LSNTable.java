@@ -28,11 +28,23 @@ public class LSNTable {
         return lsn;
     }
     
+    public Integer get(String id) {
+        return getLSNorAdd(id);
+    }
+    
     public boolean isMatched(String id, Integer lsn) {
         return Objects.equals(getLSNorAdd(id), lsn);
     }
     
     public void increment(String id) {
         table.put(id, getLSNorAdd(id) + 1);
+    }
+    
+    public synchronized Integer getAndInc(String id) {
+        Integer lsn = getLSNorAdd(id);
+        
+        increment(id);
+        
+        return lsn;
     }
 }

@@ -42,7 +42,7 @@ public class DoubleChainHashClient extends Client {
               Config.DOUBLECHAINHASH_SERVICE_PORT,
               keyPair,
               spKeyPair,
-              Config.NUM_PROCESSORS);
+              true);
         
         this.id = id;
         this.lastChainHash = Config.DEFAULT_CHAINHASH;
@@ -121,9 +121,9 @@ public class DoubleChainHashClient extends Client {
 
         lastChainHash = Utils.digest(ack.toString());
 
-        long start = System.currentTimeMillis();
-        Utils.write(ATTESTATION, ack.toString());
-        this.attestationCollectTime += System.currentTimeMillis() - start;
+        synchronized (this) {
+            Utils.write(ATTESTATION, ack.toString());
+        }
     }
     
     @Override

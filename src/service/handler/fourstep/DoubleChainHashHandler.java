@@ -3,7 +3,6 @@ package service.handler.fourstep;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.PublicKey;
@@ -11,8 +10,6 @@ import java.security.SignatureException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import message.Operation;
 import message.fourstep.doublechainhash.*;
@@ -24,14 +21,11 @@ import utility.Utils;
  *
  * @author Scott
  */
-public class DoubleChainHashHandler implements ConnectionHandler {
+public class DoubleChainHashHandler extends ConnectionHandler {
     public static final File ATTESTATION;
     
     private static final DoubleHashingChainTable HASHING_CHAIN_TABLE;
     private static final ReentrantLock LOCK;
-    
-    private final Socket socket;
-    private final KeyPair keyPair;
     
     static {
         ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/service-provider/doublechainhash");
@@ -41,17 +35,16 @@ public class DoubleChainHashHandler implements ConnectionHandler {
     }
     
     public DoubleChainHashHandler(Socket socket, KeyPair keyPair) {
-        this.socket = socket;
-        this.keyPair = keyPair;
+        super(socket, keyPair);
     }
     
     @Override
-    public void run() {
+    protected void hook(DataOutputStream out, DataInputStream in)
+            throws SignatureException, IllegalAccessException {
         PublicKey clientPubKey = service.KeyPair.CLIENT.getKeypair().getPublic();
         Lock lock = null;
         
-        try (DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-             DataInputStream in = new DataInputStream(socket.getInputStream())) {
+        try {
             Request req = Request.parse(Utils.receive(in));
             String result, clientID;
             
@@ -154,10 +147,6 @@ public class DoubleChainHashHandler implements ConnectionHandler {
             HASHING_CHAIN_TABLE.chain(clientID, Utils.digest(ackStr));
             
             Utils.appendAndDigest(ATTESTATION, ackStr + '\n');
-            
-            socket.close();
-        } catch (IOException | SignatureException ex) {
-            Logger.getLogger(DoubleChainHashHandler.class.getName()).log(Level.SEVERE, null, ex);
         } finally {
             if (lock != null) {
                 lock.unlock();

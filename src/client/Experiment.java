@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import message.Operation;
 import message.OperationType;
-import service.Config;
 import utility.Utils;
 
 /**
@@ -50,14 +49,12 @@ public class Experiment {
         }
         
         clients.clear();
-        clients.put("C&L", new ChainHashAndLSNClient("id", clientKeyPair, spKeyPair));
-        clients.put("DoubleHash", new DoubleChainHashClient("id", clientKeyPair, spKeyPair));
+        clients.put("Four-Step-C&L", new ChainHashAndLSNClient("id", clientKeyPair, spKeyPair));
+        clients.put("Four-Step-DH", new DoubleChainHashClient("id", clientKeyPair, spKeyPair));
         
         ops.clear();
-        for (int i = 0; i < files.length; i++) {
-            service.File file = files[i];
-            
-            for (int j = 0; j < Config.NUM_PROCESSORS; j++) {
+        for (service.File file : files) {
+            for (int j = 0; j < 4; j++) {
                 String id = "id" + j;
 
                 ops.add(new Operation(OperationType.DOWNLOAD, file.getName(), "", id));
