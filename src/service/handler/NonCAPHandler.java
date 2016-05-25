@@ -36,7 +36,7 @@ public class NonCAPHandler extends ConnectionHandler {
     }
     
     @Override
-    protected void hook(DataOutputStream out, DataInputStream in)
+    protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
         try {
             Request req = Request.parse(Utils.receive(in));

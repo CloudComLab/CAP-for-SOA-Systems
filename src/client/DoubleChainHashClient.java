@@ -55,7 +55,7 @@ public class DoubleChainHashClient extends Client {
     }
     
     @Override
-    protected void hook(Operation op, Socket socket, DataOutputStream out, DataInputStream in)
+    protected void handle(Operation op, Socket socket, DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
         Request req = new Request(op, op.getClientID());
         

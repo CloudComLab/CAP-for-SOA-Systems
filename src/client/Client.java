@@ -55,16 +55,17 @@ public abstract class Client {
         }
     }
     
-    protected abstract void hook(Operation op,
-                                 Socket socket,
-                                 DataOutputStream out,
-                                 DataInputStream in) throws SignatureException, IllegalAccessException;
+    protected abstract void handle(Operation op,
+                                   Socket socket,
+                                   DataOutputStream out,
+                                   DataInputStream in)
+        throws SignatureException, IllegalAccessException;
     
     public final void execute(Operation op) {
         try (Socket socket = new Socket(hostname, port);
              DataOutputStream out = new DataOutputStream(socket.getOutputStream());
              DataInputStream in = new DataInputStream(socket.getInputStream())) {
-            hook(op, socket, out, in);
+            handle(op, socket, out, in);
 
             socket.close();
         } catch (IOException | SignatureException | IllegalAccessException ex) {

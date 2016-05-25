@@ -29,14 +29,14 @@ public abstract class ConnectionHandler implements Runnable {
         this.keyPair = keyPair;
     }
     
-    protected abstract void hook(DataOutputStream out, DataInputStream in)
+    protected abstract void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException;
     
     @Override
     public void run() {
         try (DataOutputStream out = new DataOutputStream(socket.getOutputStream());
              DataInputStream in = new DataInputStream(socket.getInputStream())) {
-            hook(out, in);
+            handle(out, in);
             
             socket.close();
         } catch (IOException | SignatureException | IllegalAccessException ex) {

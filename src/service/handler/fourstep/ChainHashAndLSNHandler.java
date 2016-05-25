@@ -41,7 +41,7 @@ public class ChainHashAndLSNHandler extends ConnectionHandler {
     }
 
     @Override
-    protected void hook(DataOutputStream out, DataInputStream in)
+    protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
         PublicKey clientPubKey = service.KeyPair.CLIENT.getKeypair().getPublic();
         Lock lock = null;
