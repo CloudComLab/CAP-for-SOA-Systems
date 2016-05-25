@@ -21,6 +21,6 @@ public interface Config {
     
     public String DIGEST_ALGORITHM = "SHA-1";
     
-    public boolean ENABLE_MULTITHREAD_EXECUTING = true;
+    public boolean ENABLE_MULTITHREAD_EXECUTING = false;
     public int NUM_PROCESSORS = Runtime.getRuntime().availableProcessors();
 }

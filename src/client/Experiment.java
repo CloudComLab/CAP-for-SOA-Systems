@@ -24,8 +24,8 @@ public class Experiment {
         Map<String, Client> clients = new LinkedHashMap<>();
         
         clients.put("non-CAP", new NonCAPClient(clientKeyPair, spKeyPair));
-        clients.put("CSN", new CSNClient(clientKeyPair, spKeyPair));
-        clients.put("ChainHash", new ChainHashClient(clientKeyPair, spKeyPair));
+        clients.put("Two-Step-SN", new CSNClient(clientKeyPair, spKeyPair));
+        clients.put("Two-Step-CH", new ChainHashClient(clientKeyPair, spKeyPair));
         
         int runTimes = 100;
         

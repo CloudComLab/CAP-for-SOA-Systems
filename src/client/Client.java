@@ -7,10 +7,12 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.SignatureException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import message.Operation;
@@ -77,11 +79,29 @@ public abstract class Client {
     public void run(final List<Operation> operations, final int runTimes) {
         System.out.println("Running:");
         
+        final HashMap<String, ReentrantLock> lockTable = new HashMap<>();
+        
+        for (Operation op : operations) {
+            String id = op.getClientID();
+            
+            if (!lockTable.containsKey(id)) {
+                lockTable.put(id, new ReentrantLock());
+            }
+        }
+        
         long time = System.currentTimeMillis();
         for (int i = 1; i <= runTimes; i++) {
             final int x = i;
             pool.execute(() -> {
-                execute(operations.get(x % operations.size()));
+                Operation op = operations.get(x % operations.size());
+                ReentrantLock lock = lockTable.get(op.getClientID());
+                
+                lock.lock();
+                try {
+                    execute(op);
+                } finally {
+                    lock.unlock();
+                }
             });
         }
         
