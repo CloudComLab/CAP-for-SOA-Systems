@@ -20,7 +20,7 @@ import message.OperationType;
 import message.fourstep.doublechainhash.*;
 import service.Config;
 import service.handler.fourstep.DoubleChainHashHandler;
-import service.handler.fourstep.DoubleHashingChainTable;
+import service.DoubleHashingChainTable;
 import utility.Utils;
 
 /**

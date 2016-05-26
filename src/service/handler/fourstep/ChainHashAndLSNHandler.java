@@ -1,5 +1,7 @@
 package service.handler.fourstep;
 
+import service.HashingChainTable;
+import service.LSNTable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;

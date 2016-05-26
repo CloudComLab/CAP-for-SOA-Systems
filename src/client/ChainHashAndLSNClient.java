@@ -18,8 +18,8 @@ import message.OperationType;
 import message.fourstep.chainhash_lsn.*;
 import service.Config;
 import service.handler.fourstep.ChainHashAndLSNHandler;
-import service.handler.fourstep.HashingChainTable;
-import service.handler.fourstep.LSNTable;
+import service.HashingChainTable;
+import service.LSNTable;
 import utility.Utils;
 
 /**
