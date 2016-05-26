@@ -28,8 +28,6 @@ public class Experiment {
         Map<String, Client> clients = new LinkedHashMap<>();
         
         clients.put("non-CAP", new NonCAPClient(clientKeyPair, spKeyPair));
-        clients.put("Two-Step-SN", new CSNClient(clientKeyPair, spKeyPair));
-        clients.put("Two-Step-CH", new ChainHashClient(clientKeyPair, spKeyPair));
         
         int runTimes = 100;
         
@@ -53,8 +51,7 @@ public class Experiment {
         }
         
         clients.clear();
-        clients.put("Four-Step-C&L", new ChainHashAndLSNClient("id", clientKeyPair, spKeyPair));
-        clients.put("Four-Step-DH", new DoubleChainHashClient("id", clientKeyPair, spKeyPair));
+        clients.put("Your-Scheme", new YourClient(clientKeyPair, spKeyPair));
         
         ops.clear();
         for (service.File file : files) {
