@@ -43,7 +43,7 @@ public class ChainHashClient extends Client {
               spKeyPair,
               false);
         
-        this.lastChainHash = Config.DEFAULT_CHAINHASH;
+        this.lastChainHash = Config.INITIAL_HASH;
     }
     
     public String getLastChainHash() {
@@ -121,7 +121,7 @@ public class ChainHashClient extends Client {
         
         try (FileReader fr = new FileReader(spFile);
              BufferedReader br = new BufferedReader(fr)) {
-            String chainhash = Config.DEFAULT_CHAINHASH;
+            String chainhash = Config.INITIAL_HASH;
             
             do {
                 String s = br.readLine();

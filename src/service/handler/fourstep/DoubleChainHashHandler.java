@@ -14,6 +14,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import message.Operation;
 import message.fourstep.doublechainhash.*;
 import service.Config;
+import service.Key;
+import service.KeyManager;
 import service.handler.ConnectionHandler;
 import utility.Utils;
 
@@ -41,7 +43,7 @@ public class DoubleChainHashHandler extends ConnectionHandler {
     @Override
     protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
-        PublicKey clientPubKey = service.KeyPair.CLIENT.getKeypair().getPublic();
+        PublicKey clientPubKey = KeyManager.getInstance().getPublicKey(Key.CLIENT);
         Lock lock = null;
         
         try {

@@ -13,6 +13,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import message.Operation;
 import message.twostep.chainhash.*;
 import service.Config;
+import service.Key;
+import service.KeyManager;
 import service.handler.ConnectionHandler;
 import utility.Utils;
 
@@ -30,7 +32,7 @@ public class ChainHashHandler extends ConnectionHandler {
         ATTESTATION = new File(Config.ATTESTATION_DIR_PATH + "/service-provider/chainhash");
         
         HashingChain = new LinkedList<>();
-        HashingChain.add(Config.DEFAULT_CHAINHASH);
+        HashingChain.add(Config.INITIAL_HASH);
         
         LOCK = new ReentrantLock();
     }
@@ -40,8 +42,9 @@ public class ChainHashHandler extends ConnectionHandler {
     }
     
     @Override
-    protected void handle(DataOutputStream out, DataInputStream in) throws SignatureException, IllegalAccessException {
-        PublicKey clientPubKey = service.KeyPair.CLIENT.getKeypair().getPublic();
+    protected void handle(DataOutputStream out, DataInputStream in)
+            throws SignatureException, IllegalAccessException {
+        PublicKey clientPubKey = KeyManager.getInstance().getPublicKey(Key.CLIENT);
         
         try {
             Request req = Request.parse(Utils.receive(in));

@@ -24,7 +24,7 @@ public class HashingChainTable {
         } else {
             list = new LinkedList<>();
             
-            list.add(Config.DEFAULT_CHAINHASH);
+            list.add(Config.INITIAL_HASH);
             
             table.put(id, list);
         }

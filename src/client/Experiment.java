@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import message.Operation;
 import message.OperationType;
+import service.Key;
+import service.KeyManager;
 import utility.Utils;
 
 /**
@@ -16,8 +18,10 @@ import utility.Utils;
 public class Experiment {
     public static void main(String[] args) throws ClassNotFoundException {
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-        KeyPair clientKeyPair = service.KeyPair.CLIENT.getKeypair();
-        KeyPair spKeyPair = service.KeyPair.SERVICE_PROVIDER.getKeypair();
+        
+        KeyManager keyManager = KeyManager.getInstance();
+        KeyPair clientKeyPair = keyManager.getKeyPair(Key.CLIENT);
+        KeyPair spKeyPair = keyManager.getKeyPair(Key.SERVICE_PROVIDER);
         
         Utils.cleanAllAttestations();
         

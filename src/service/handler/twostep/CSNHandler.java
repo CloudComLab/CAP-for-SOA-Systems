@@ -15,6 +15,8 @@ import java.util.logging.Logger;
 import message.Operation;
 import message.twostep.csn.*;
 import service.Config;
+import service.Key;
+import service.KeyManager;
 import service.handler.ConnectionHandler;
 import utility.Utils;
 
@@ -42,7 +44,7 @@ public class CSNHandler extends ConnectionHandler {
     @Override
     protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
-        PublicKey clientPubKey = service.KeyPair.CLIENT.getKeypair().getPublic();
+        PublicKey clientPubKey = KeyManager.getInstance().getPublicKey(Key.CLIENT);
         
         try {
             Request req = Request.parse(Utils.receive(in));

@@ -47,7 +47,7 @@ public class DoubleChainHashClient extends Client {
               true);
         
         this.id = id;
-        this.lastChainHash = Config.DEFAULT_CHAINHASH;
+        this.lastChainHash = Config.INITIAL_HASH;
     }
     
     public String getLastChainHash() {
@@ -171,7 +171,7 @@ public class DoubleChainHashClient extends Client {
                 success &= res.validate(spKey) & req.validate(cliKey);
             } while (success);
             
-            String hash = Config.DEFAULT_CHAINHASH;
+            String hash = Config.INITIAL_HASH;
             int numFound = 0;
             
             while (mainChainTab.containsKey(hash)) {

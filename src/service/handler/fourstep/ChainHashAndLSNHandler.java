@@ -14,6 +14,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import message.Operation;
 import message.fourstep.chainhash_lsn.*;
 import service.Config;
+import service.Key;
+import service.KeyManager;
 import service.handler.ConnectionHandler;
 import utility.Utils;
 
@@ -43,7 +45,7 @@ public class ChainHashAndLSNHandler extends ConnectionHandler {
     @Override
     protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
-        PublicKey clientPubKey = service.KeyPair.CLIENT.getKeypair().getPublic();
+        PublicKey clientPubKey = KeyManager.getInstance().getPublicKey(Key.CLIENT);
         Lock lock = null;
         
         try {
