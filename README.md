@@ -83,6 +83,10 @@ for (int i = 0; i < runTimes; i++) {
 
 **P.S. 有不會的部分就直接參考現有的是怎麼做**
 
+## Acknowledgement
+
+This work is supported in part by Ministry of Science and Technology of Taiwan under Grant 104-2221-E-003-014.
+
 ## License
 
    Copyright (c) 2016 Cloud Computing Laboratory
