@@ -1,6 +1,5 @@
 package service.handler;
 
-import client.Client;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -9,6 +8,11 @@ import java.security.KeyPair;
 import java.security.SignatureException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Map;
+
+import client.Client;
+import service.Key;
+import service.KeyManager;
 
 /**
  *
@@ -23,10 +27,14 @@ public abstract class ConnectionHandler implements Runnable {
     
     protected final Socket socket;
     protected final KeyPair keyPair;
+    protected final Map<String, String> keyInfo;
     
-    public ConnectionHandler(Socket socket, KeyPair keyPair) {
+    public ConnectionHandler(Socket socket, Key key) {
         this.socket = socket;
-        this.keyPair = keyPair;
+        
+        KeyManager keyManager = KeyManager.getInstance();
+        this.keyPair = keyManager.getKeyPair(key);
+        this.keyInfo = keyManager.getKeyInfo(key);
     }
     
     protected abstract void handle(DataOutputStream out, DataInputStream in)

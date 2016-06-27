@@ -7,9 +7,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,6 +17,7 @@ import message.OperationType;
 import message.twostep.chainhash.Acknowledgement;
 import message.twostep.chainhash.Request;
 import service.Config;
+import service.Key;
 import service.handler.twostep.ChainHashHandler;
 import utility.Utils;
 
@@ -36,11 +36,11 @@ public class ChainHashClient extends Client {
     
     private String lastChainHash;
     
-    public ChainHashClient(KeyPair keyPair, KeyPair spKeyPair) {
+    public ChainHashClient(Key cliKey, Key spKey) {
         super(Config.SERVICE_HOSTNAME,
               Config.CHAINHASH_SERVICE_PORT,
-              keyPair,
-              spKeyPair,
+              cliKey,
+              spKey,
               false);
         
         this.lastChainHash = Config.INITIAL_HASH;
@@ -55,7 +55,7 @@ public class ChainHashClient extends Client {
             throws SignatureException, IllegalAccessException {
         Request req = new Request(op);
 
-        req.sign(keyPair);
+        req.sign(clientKeyPair, clientKeyInfo);
 
         Utils.send(out, req.toString());
 
@@ -63,11 +63,9 @@ public class ChainHashClient extends Client {
             Utils.send(out, new File(Config.DATA_DIR_PATH + '/' + op.getPath()));
         }
 
-        Acknowledgement ack = Acknowledgement.parse(Utils.receive(in));
-
-        if (!ack.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("ACK validation failure");
-        }
+        Acknowledgement ack = new Acknowledgement(
+                Utils.receive(in),
+                (RSAPublicKey) serviceProviderKeyPair.getPublic());
 
         String result = ack.getResult();
         String chainHash = ack.getChainHash();
@@ -96,7 +94,7 @@ public class ChainHashClient extends Client {
 
                 String digest = Utils.digest(file);
 
-                if (result.compareTo(digest) == 0) {
+                if (result.equals(digest)) {
                     result = "download success";
                 } else {
                     result = "download file digest mismatch";
@@ -116,8 +114,7 @@ public class ChainHashClient extends Client {
     @Override
     public boolean audit(File spFile) {
         boolean success = true;
-        PublicKey spKey = spKeyPair.getPublic();
-        PublicKey cliKey = keyPair.getPublic();
+        RSAPublicKey spKey = (RSAPublicKey) serviceProviderKeyPair.getPublic();
         
         try (FileReader fr = new FileReader(spFile);
              BufferedReader br = new BufferedReader(fr)) {
@@ -126,18 +123,16 @@ public class ChainHashClient extends Client {
             do {
                 String s = br.readLine();
                 
-                Acknowledgement ack = Acknowledgement.parse(s);
+                Acknowledgement ack = new Acknowledgement(s, spKey);
                 Request req = ack.getRequest();
                 
-                if (chainhash.compareTo(ack.getChainHash()) == 0) {
+                if (chainhash.equals(ack.getChainHash())) {
                     chainhash = Utils.digest(ack.toString());
                 } else {
                     success = false;
                 }
-                
-                success &= ack.validate(spKey) & req.validate(cliKey);
             } while (success && chainhash.compareTo(lastChainHash) != 0);
-        } catch (NullPointerException | IOException ex) {
+        } catch (SignatureException | NullPointerException | IOException ex) {
             success = false;
             
             LOGGER.log(Level.SEVERE, null, ex);

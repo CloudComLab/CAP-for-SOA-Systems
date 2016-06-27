@@ -5,23 +5,25 @@ package message;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.Serializable;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyException;
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
+import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.xml.crypto.MarshalException;
 
+import javax.xml.crypto.MarshalException;
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 import javax.xml.crypto.dsig.DigestMethod;
 import javax.xml.crypto.dsig.Reference;
@@ -46,15 +48,17 @@ import javax.xml.soap.SOAPEnvelope;
 import javax.xml.soap.SOAPException;
 import javax.xml.soap.SOAPFactory;
 import javax.xml.soap.SOAPPart;
-import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Source;
 import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stream.StreamResult;
+
+import org.jose4j.jwk.RsaJsonWebKey;
+import org.jose4j.jwk.RsaJwkGenerator;
+import org.jose4j.lang.JoseException;
 
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -67,14 +71,17 @@ import org.xml.sax.SAXException;
  *
  * @author Scott
  */
-public class SOAPMessage implements Serializable {
+public class SOAPMessage extends CAPMessage {
     public static MessageFactory MESSAGE_FACTORY;
+    private static Logger LOGGER;
     
     static {
+        LOGGER = Logger.getLogger(SOAPMessage.class.getName());
+        
         try {
             MESSAGE_FACTORY = MessageFactory.newInstance();
         } catch (SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, null, ex);
         }
     }
     
@@ -84,7 +91,11 @@ public class SOAPMessage implements Serializable {
     protected javax.xml.soap.SOAPBody body;
     protected Node root;
     
-    public SOAPMessage(String msgName) {
+    protected Map bodyContents;
+    
+    public SOAPMessage(MessageType type) {
+        super(type);
+        
         try {
             message = MessageFactory.newInstance().createMessage();
             factory = SOAPFactory.newInstance();
@@ -100,7 +111,9 @@ public class SOAPMessage implements Serializable {
             Name bodyName = soapEnvelope.createName("id", "SOAP-SEC", "http://schemas.xmlsoap.org/soap/security/2000-12");
             body.addAttribute(bodyName, "Body");
             
-            body.addChildElement(factory.createElement(msgName));
+            body.addChildElement(factory.createElement(type.name()));
+            
+            initContents();
             
             Source source = message.getSOAPPart().getContent();
             
@@ -114,20 +127,24 @@ public class SOAPMessage implements Serializable {
 
                 root = (Node) db.parse(inSource).getDocumentElement();
             }
-        } catch (SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ParserConfigurationException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SAXException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (SOAPException | ParserConfigurationException | SAXException | IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
         }
     }
     
-    public SOAPMessage(javax.xml.soap.SOAPMessage soap) {
+    /**
+     * Parse the SOAP string into a SOAP document and validate its
+     * signature by the public key. If the public key is not given, the
+     * verification will be skipped.
+     * 
+     * @throws SignatureException if the signature is invalid.
+     */
+    public SOAPMessage(String soapStr, RSAPublicKey publicKey)
+            throws SignatureException {
+        super(soapStr, publicKey);
+        
         try {
-            message = soap;
+            message = SOAPMessage.parseSOAP(soapStr);
             factory = SOAPFactory.newInstance();
             
             SOAPPart soapPart = message.getSOAPPart();
@@ -136,6 +153,8 @@ public class SOAPMessage implements Serializable {
             header = soapEnvelope.getHeader();
             body = soapEnvelope.getBody();
             
+            initContents();
+            
             Source source = message.getSOAPPart().getContent();
             
             if (source instanceof DOMSource) {
@@ -148,40 +167,49 @@ public class SOAPMessage implements Serializable {
 
                 root = (Node) db.parse(inSource).getDocumentElement();
             }
-        } catch (SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ParserConfigurationException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (SAXException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+            
+            if (publicKey != null && !validate(publicKey)) {
+                throw new SignatureException("Invalid signature.");
+            }
+        } catch (SOAPException | ParserConfigurationException | SAXException | IOException e) {
+            LOGGER.log(Level.SEVERE, null, e);
         }
     }
     
-    public void add2Body(LinkedHashMap<String, String> map) {
-        try {
-            SOAPElement op = factory.createElement(map.get("name"));
+    private void initContents() {
+        bodyContents = new LinkedHashMap();
+        
+        NodeList bodyNodes = getBody();
+        for (int i = 0; i < bodyNodes.getLength(); i++) {
+            Node node = bodyNodes.item(i);
+            String nodeName = node.getNodeName();
             
-            for (String key : map.keySet()) {
-                if (key.compareTo("name") == 0) {
-                    continue;
+            if (nodeName.contains("__")) {
+                String prefix = nodeName.substring(0, nodeName.indexOf("__"));
+                nodeName = nodeName.substring(nodeName.indexOf("__") + 2);
+                
+                Map<String, String> subContents = (Map<String, String>) bodyContents.get(prefix);
+                
+                if (subContents == null) {
+                    subContents = new HashMap<>();
                 }
                 
-                SOAPElement child = factory.createElement(key);
-                
-                child.setTextContent(map.get(key));
-                
-                op.addChildElement(child);
+                subContents.put(nodeName, node.getTextContent());
+                bodyContents.put(prefix, subContents);
+            } else {
+                bodyContents.put(node.getNodeName(), node.getTextContent());
             }
-            
-            add2Body(op);
-        } catch (SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
     }
     
+    @Override
+    public void add2Body(String name, Map<String, String> contents) {
+        for (Entry<String, String> entry: contents.entrySet()) {
+            add2Body(name + "__" + entry.getKey(), entry.getValue());
+        }
+    }
+    
+    @Override
     public void add2Body(String name, String value) {
         try {
             SOAPElement soapElement = factory.createElement(name);
@@ -189,7 +217,7 @@ public class SOAPMessage implements Serializable {
             
             add2Body(soapElement);
         } catch (SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, null, ex);
         }
     }
     
@@ -199,7 +227,7 @@ public class SOAPMessage implements Serializable {
             
             message.saveChanges();
         } catch (SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, null, ex);
         }
     }
     
@@ -207,12 +235,14 @@ public class SOAPMessage implements Serializable {
         return body.getFirstChild().getChildNodes();
     }
     
-    public void sign(KeyPair keyPair) {
+    @Override
+    public void sign(KeyPair keyPair, Map<String, String> options) {
         try {
             XMLSignatureFactory sigFactory = XMLSignatureFactory.getInstance();
             Reference ref = sigFactory.newReference("#Body", sigFactory.newDigestMethod(DigestMethod.SHA1, null));
             SignedInfo signedInfo = sigFactory.newSignedInfo(
-                sigFactory.newCanonicalizationMethod(CanonicalizationMethod.INCLUSIVE_WITH_COMMENTS, (C14NMethodParameterSpec) null),
+                sigFactory.newCanonicalizationMethod(CanonicalizationMethod.INCLUSIVE_WITH_COMMENTS,
+                                                     (C14NMethodParameterSpec) null),
                 sigFactory.newSignatureMethod(SignatureMethod.RSA_SHA1, null),
                 Collections.singletonList(ref));
             KeyInfoFactory kif = sigFactory.getKeyInfoFactory();
@@ -231,20 +261,13 @@ public class SOAPMessage implements Serializable {
                 "http://schemas.xmlsoap.org/soap/security/2000-12", "id");
             
             sig.sign(sigContext);
-        } catch (KeyException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (InvalidAlgorithmParameterException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (MarshalException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (XMLSignatureException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (KeyException | NoSuchAlgorithmException | MarshalException |
+                 InvalidAlgorithmParameterException | XMLSignatureException e) {
+            LOGGER.log(Level.SEVERE, null, e);
         }
     }
     
-    public boolean validate(PublicKey publicKey) {
+    private boolean validate(PublicKey publicKey) {
         try {
             Node envelope = root.getFirstChild();
             Node header = envelope.getFirstChild();
@@ -267,10 +290,8 @@ public class SOAPMessage implements Serializable {
                 "id");
             
             return signature.validate(valContext);
-        } catch (MarshalException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (XMLSignatureException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (MarshalException | XMLSignatureException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
         }
 
         return false;
@@ -288,10 +309,8 @@ public class SOAPMessage implements Serializable {
             transformer.transform(source, result);
             
             return result.getWriter().toString().replaceAll("[\n\r]", "");
-        } catch (TransformerConfigurationException ex) {
-            Logger.getLogger(XMLDocument.class.getName()).log(Level.SEVERE, null, ex);
         } catch (TransformerException ex) {
-            Logger.getLogger(XMLDocument.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, null, ex);
         }
         
         return "[toString failed]";
@@ -306,7 +325,7 @@ public class SOAPMessage implements Serializable {
             
             message = MESSAGE_FACTORY.createMessage(null, stream);
         } catch (IOException | SOAPException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+            LOGGER.log(Level.SEVERE, null, ex);
         }
         
         return message;
@@ -333,35 +352,26 @@ public class SOAPMessage implements Serializable {
     }
     
     public static void main(String[] args) {
-        KeyPair keyPair = null;
-        
         try {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-            keyGen.initialize(512, new SecureRandom());
-            keyPair = keyGen.generateKeyPair();
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
+            RsaJsonWebKey rsaJsonWebKey = RsaJwkGenerator.generateJwk(2048);
+            KeyPair keyPair = new KeyPair(
+                        rsaJsonWebKey.getRsaPublicKey(),
+                        rsaJsonWebKey.getRsaPrivateKey());
+
+            SOAPMessage soap = new SOAPMessage(MessageType.Request);
+
+            soap.add2Body("name", "scott");
+            soap.add2Body("gender", "male");
+
+            soap.sign(keyPair, null);
+
+            System.out.println(soap);
+
+            soap = new SOAPMessage(soap.toString(), (RSAPublicKey) keyPair.getPublic());
+            
+            System.out.println(soap);
+        } catch (JoseException | SignatureException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
         }
-        
-        SOAPMessage soap = new SOAPMessage("Request");
-        
-        soap.add2Body("name", "scott");
-        soap.add2Body("gender", "male");
-        
-        soap.sign(keyPair);
-        
-        System.out.println(soap);
-        
-        System.out.println(soap.validate(keyPair.getPublic()));
-        
-        InputStream stream = new ByteArrayInputStream(soap.toString().getBytes(StandardCharsets.UTF_8));
-        
-        try {
-            soap = new SOAPMessage(MessageFactory.newInstance().createMessage(null, stream));
-        } catch (SOAPException | IOException ex) {
-            Logger.getLogger(SOAPMessage.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-        System.err.println(soap.toString());
     }
 }

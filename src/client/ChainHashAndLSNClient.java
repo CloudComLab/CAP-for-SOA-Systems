@@ -7,9 +7,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,6 +18,7 @@ import message.fourstep.chainhash_lsn.*;
 import service.Config;
 import service.handler.fourstep.ChainHashAndLSNHandler;
 import service.HashingChainTable;
+import service.Key;
 import service.LSNTable;
 import utility.Utils;
 
@@ -38,11 +38,11 @@ public class ChainHashAndLSNClient extends Client {
     private final String id;
     private final LSNTable lsnTable;
     
-    public ChainHashAndLSNClient(String id, KeyPair keyPair, KeyPair spKeyPair) {
+    public ChainHashAndLSNClient(String id, Key cliKey, Key spKey) {
         super(Config.SERVICE_HOSTNAME,
               Config.CHAINHASH_LSN_SERVICE_PORT,
-              keyPair,
-              spKeyPair,
+              cliKey,
+              spKey,
               true);
         
         this.id = id;
@@ -54,19 +54,17 @@ public class ChainHashAndLSNClient extends Client {
             throws SignatureException, IllegalAccessException {
         Request req = new Request(op, op.getClientID(), lsnTable.get(op.getClientID()));
 
-        req.sign(keyPair);
+        req.sign(clientKeyPair, clientKeyInfo);
 
         Utils.send(out, req.toString());
 
-        Response res = Response.parse(Utils.receive(in));
-
-        if (!res.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("RES validation failure");
-        }
+        Response res = new Response(
+                Utils.receive(in),
+                (RSAPublicKey) serviceProviderKeyPair.getPublic());
 
         ReplyResponse rr = new ReplyResponse(res);
 
-        rr.sign(keyPair);
+        rr.sign(clientKeyPair, clientKeyInfo);
 
         Utils.send(out, rr.toString());
 
@@ -74,11 +72,9 @@ public class ChainHashAndLSNClient extends Client {
             Utils.send(out, new File(Config.DATA_DIR_PATH + '/' + op.getPath()));
         }
 
-        Acknowledgement ack = Acknowledgement.parse(Utils.receive(in));
-
-        if (!ack.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("ACK validation failure");
-        }
+        Acknowledgement ack = new Acknowledgement(
+                Utils.receive(in),
+                (RSAPublicKey) serviceProviderKeyPair.getPublic());
 
         String result = ack.getResult();
         String fname = "";
@@ -100,7 +96,7 @@ public class ChainHashAndLSNClient extends Client {
 
                 String digest = Utils.digest(file);
 
-                if (result.compareTo(digest) == 0) {
+                if (result.equals(digest)) {
                     result = "download success";
                 } else {
                     result = "download file digest mismatch";
@@ -122,8 +118,7 @@ public class ChainHashAndLSNClient extends Client {
     @Override
     public boolean audit(File spFile) {
         boolean success = true;
-        PublicKey spKey = spKeyPair.getPublic();
-        PublicKey cliKey = keyPair.getPublic();
+        RSAPublicKey spKey = (RSAPublicKey) serviceProviderKeyPair.getPublic();
         
         LSNTable lsnTab = new LSNTable();
         HashingChainTable hashingChainTab = new HashingChainTable();
@@ -137,7 +132,7 @@ public class ChainHashAndLSNClient extends Client {
                     break;
                 }
                 
-                Acknowledgement ack = Acknowledgement.parse(s);
+                Acknowledgement ack = new Acknowledgement(s, spKey);
                 ReplyResponse rr = ack.getReplyResponse();
                 Response res = rr.getResponse();
                 Request req = res.getRequest();
@@ -156,11 +151,8 @@ public class ChainHashAndLSNClient extends Client {
                 } else {
                     success = false;
                 }
-                
-                success &= ack.validate(spKey) & rr.validate(cliKey);
-                success &= res.validate(spKey) & req.validate(cliKey);
             } while (success);
-        } catch (IOException ex) {
+        } catch (SignatureException | IOException ex) {
             success = false;
             
             LOGGER.log(Level.SEVERE, null, ex);

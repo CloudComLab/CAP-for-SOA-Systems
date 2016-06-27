@@ -1,38 +1,42 @@
 package message.twostep.chainhash;
 
+import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
+
+import message.MessageType;
 import message.SOAPMessage;
-import org.w3c.dom.NodeList;
 
 /**
  *
  * @author Scott
  */
 public class Acknowledgement extends SOAPMessage {
-    private static final long serialVersionUID = 20141006L;
+    private static final long serialVersionUID = 20160627L;
     private final String result;
-    private final Request request;
     private final String lastChainHash;
+    private final Request request;
     
-    public Acknowledgement(String result, Request req, String hash) {
-        super("acknowledgement");
+    public Acknowledgement(String result, String hash, Request req) {
+        super(MessageType.Acknowledgement);
         
         this.result = result;
-        this.request = req;
         this.lastChainHash = hash;
+        this.request = req;
         
-        add2Body("result", result);
-        add2Body("request", request.toString());
-        add2Body("chainhash", lastChainHash);
+        super.add2Body("result", result);
+        super.add2Body("chainhash", lastChainHash);
+        super.add2Body(MessageType.Request.name(), req.toString());
     }
     
-    private Acknowledgement(javax.xml.soap.SOAPMessage message) {
-        super(message);
+    public Acknowledgement(String ackStr, RSAPublicKey publicKey)
+            throws SignatureException {
+        super(ackStr, publicKey);
         
-        NodeList body = getBody();
-        
-        this.result = body.item(0).getTextContent();
-        this.request = Request.parse(body.item(1).getTextContent());
-        this.lastChainHash = body.item(2).getTextContent();
+        this.result = String.valueOf(bodyContents.get("result"));
+        this.lastChainHash = String.valueOf(bodyContents.get("chainhash"));
+        this.request = new Request(
+                String.valueOf(bodyContents.get(MessageType.Request.name())),
+                null);
     }
     
     public String getResult() {
@@ -45,9 +49,5 @@ public class Acknowledgement extends SOAPMessage {
     
     public String getChainHash() {
         return lastChainHash;
-    }
-    
-    public static Acknowledgement parse(String receive) {
-        return new Acknowledgement(SOAPMessage.parseSOAP(receive));
     }
 }

@@ -7,9 +7,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,6 +17,7 @@ import message.OperationType;
 import message.twostep.csn.Acknowledgement;
 import message.twostep.csn.Request;
 import service.Config;
+import service.Key;
 import service.handler.twostep.CSNHandler;
 import utility.Utils;
 
@@ -36,11 +36,11 @@ public class CSNClient extends Client {
     
     private int csn;
     
-    public CSNClient(KeyPair keyPair, KeyPair spKeyPair) {
+    public CSNClient(Key cliKey, Key spKey) {
         super(Config.SERVICE_HOSTNAME,
               Config.CSN_SERVICE_PORT,
-              keyPair,
-              spKeyPair,
+              cliKey,
+              spKey,
               false);
         
         this.csn = 1;
@@ -51,7 +51,7 @@ public class CSNClient extends Client {
             throws SignatureException, IllegalAccessException {
         Request req = new Request(op, csn);
         
-        req.sign(keyPair);
+        req.sign(clientKeyPair, clientKeyInfo);
         
         Utils.send(out, req.toString());
         
@@ -59,16 +59,14 @@ public class CSNClient extends Client {
             Utils.send(out, new File(Config.DATA_DIR_PATH + '/' + op.getPath()));
         }
 
-        Acknowledgement ack = Acknowledgement.parse(Utils.receive(in));
+        Acknowledgement ack = new Acknowledgement(
+                Utils.receive(in),
+                (RSAPublicKey) serviceProviderKeyPair.getPublic());
         
-        if (!ack.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("ACK validation failure");
-        }
-
         String result = ack.getResult();
         String fname = "";
 
-        if (result.compareTo("CSN mismatch") == 0) {
+        if (result.equals("CSN mismatch")) {
             throw new IllegalAccessException(result);
         }
 
@@ -89,7 +87,7 @@ public class CSNClient extends Client {
 
                 String digest = Utils.digest(file);
 
-                if (result.compareTo(digest) == 0) {
+                if (result.equals(digest)) {
                     result = "download success";
                 } else {
                     result = "download file digest mismatch";
@@ -109,8 +107,7 @@ public class CSNClient extends Client {
     @Override
     public boolean audit(File spFile) {
         boolean success = true;
-        PublicKey spKey = spKeyPair.getPublic();
-        PublicKey cliKey = keyPair.getPublic();
+        RSAPublicKey spKey = (RSAPublicKey) serviceProviderKeyPair.getPublic();
         int csn = 1;
         
         try (FileReader cliFr = new FileReader(ATTESTATION);
@@ -123,7 +120,7 @@ public class CSNClient extends Client {
                 if (s == null) {
                     break;
                 } else {
-                    Acknowledgement ack = Acknowledgement.parse(s);
+                    Acknowledgement ack = new Acknowledgement(s, spKey);
                     Request req = ack.getRequest();
                     
                     if (req.getConsecutiveSequenceNumber() != csn) {
@@ -131,14 +128,12 @@ public class CSNClient extends Client {
                     } else {
                         csn += 1;
                     }
-                    
-                    success &= ack.validate(spKey) & req.validate(cliKey);
                 }
             }
             
-            Request req = Acknowledgement.parse(cliBr.readLine()).getRequest();
+            Request req = new Acknowledgement(cliBr.readLine(), spKey).getRequest();
             success = (csn == req.getConsecutiveSequenceNumber());
-        } catch (IOException ex) {
+        } catch (SignatureException | IOException ex) {
             success = false;
             
             LOGGER.log(Level.SEVERE, null, ex);

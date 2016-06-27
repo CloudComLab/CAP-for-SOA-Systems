@@ -1,6 +1,5 @@
 package client;
 
-import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,19 +18,15 @@ public class Experiment {
     public static void main(String[] args) throws ClassNotFoundException {
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
         
-        KeyManager keyManager = KeyManager.getInstance();
-        KeyPair clientKeyPair = keyManager.getKeyPair(Key.CLIENT);
-        KeyPair spKeyPair = keyManager.getKeyPair(Key.SERVICE_PROVIDER);
-        
         Utils.cleanAllAttestations();
         
         Map<String, Client> clients = new LinkedHashMap<>();
         
-        clients.put("non-CAP", new NonCAPClient(clientKeyPair, spKeyPair));
-        clients.put("Two-Step-SN", new CSNClient(clientKeyPair, spKeyPair));
-        clients.put("Two-Step-CH", new ChainHashClient(clientKeyPair, spKeyPair));
+        clients.put("non-CAP", new NonCAPClient(Key.CLIENT, Key.SERVICE_PROVIDER));
+        clients.put("Two-Step-SN", new CSNClient(Key.CLIENT, Key.SERVICE_PROVIDER));
+        clients.put("Two-Step-CH", new ChainHashClient(Key.CLIENT, Key.SERVICE_PROVIDER));
         
-        int runTimes = 100;
+        int runTimes = 1;
         
         List<Operation> ops = new ArrayList<>();
         
@@ -53,8 +48,8 @@ public class Experiment {
         }
         
         clients.clear();
-        clients.put("Four-Step-C&L", new ChainHashAndLSNClient("id", clientKeyPair, spKeyPair));
-        clients.put("Four-Step-DH", new DoubleChainHashClient("id", clientKeyPair, spKeyPair));
+        clients.put("Four-Step-C&L", new ChainHashAndLSNClient("id", Key.CLIENT, Key.SERVICE_PROVIDER));
+        clients.put("Four-Step-DH", new DoubleChainHashClient("id", Key.CLIENT, Key.SERVICE_PROVIDER));
         
         ops.clear();
         for (service.File file : files) {

@@ -1,34 +1,38 @@
 package message.fourstep.doublechainhash;
 
+import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
+
+import message.MessageType;
 import message.SOAPMessage;
-import org.w3c.dom.NodeList;
 
 /**
  *
  * @author Scott
  */
 public class Acknowledgement extends SOAPMessage {
-    private static final long serialVersionUID = 20141013L;
+    private static final long serialVersionUID = 20160627L;
     private final String result;
     private final ReplyResponse replyResponse;
     
     public Acknowledgement(String result, ReplyResponse rr) {
-        super("acknowledgement");
+        super(MessageType.Acknowledgement);
         
         this.result = result;
         this.replyResponse = rr;
         
-        add2Body("result", result);
-        add2Body("reply-response", replyResponse.toString());
+        super.add2Body("result", result);
+        super.add2Body(MessageType.ReplyResponse.name(), replyResponse.toString());
     }
     
-    private Acknowledgement(javax.xml.soap.SOAPMessage message) {
-        super(message);
+    public Acknowledgement(String ackStr, RSAPublicKey publicKey)
+            throws SignatureException {
+        super(ackStr, publicKey);
         
-        NodeList body = getBody();
-        
-        this.result = body.item(0).getTextContent();
-        this.replyResponse = ReplyResponse.parse(body.item(1).getTextContent());
+        this.result = String.valueOf(bodyContents.get("result"));
+        this.replyResponse = new ReplyResponse(
+                String.valueOf(bodyContents.get(MessageType.ReplyResponse.name())),
+                null);
     }
     
     public String getResult() {
@@ -37,9 +41,5 @@ public class Acknowledgement extends SOAPMessage {
     
     public ReplyResponse getReplyResponse() {
         return replyResponse;
-    }
-    
-    public static Acknowledgement parse(String receive) {
-        return new Acknowledgement(SOAPMessage.parseSOAP(receive));
     }
 }

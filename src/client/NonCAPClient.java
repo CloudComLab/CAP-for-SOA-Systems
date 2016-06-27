@@ -14,6 +14,7 @@ import java.net.Socket;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -22,6 +23,7 @@ import java.util.logging.Logger;
 import message.Operation;
 import message.OperationType;
 import service.Config;
+import service.Key;
 import service.handler.NonCAPHandler;
 import utility.Utils;
 
@@ -40,11 +42,11 @@ public class NonCAPClient extends Client {
         LOGGER = Logger.getLogger(NonCAPClient.class.getName());
     }
     
-    public NonCAPClient(KeyPair keyPair, KeyPair spKeyPair) {
+    public NonCAPClient(Key cliKey, Key spKey) {
         super(Config.SERVICE_HOSTNAME,
               Config.NONCAP_SERVICE_PORT,
-              keyPair,
-              spKeyPair,
+              cliKey,
+              spKey,
               true);
     }
     
@@ -59,7 +61,7 @@ public class NonCAPClient extends Client {
             Utils.send(out, new File(Config.DATA_DIR_PATH + '/' + op.getPath()));
         }
 
-        Acknowledgement ack = Acknowledgement.parse(Utils.receive(in));
+        Acknowledgement ack = new Acknowledgement(Utils.receive(in), null);
 
         String result = ack.getResult();
         String digest = "";
@@ -94,7 +96,7 @@ public class NonCAPClient extends Client {
                 break;
         }
 
-        if (result.compareTo(digest) == 0) {
+        if (result.equals(digest)) {
             result = "download success";
         } else {
             result = "download file digest mismatch";
@@ -139,7 +141,7 @@ public class NonCAPClient extends Client {
         boolean reqAudit = audit(Request.class,
                                  REQ_ATTESTATION,
                                  reqAuditFile,
-                                 keyPair.getPublic());
+                                 (RSAPublicKey) clientKeyPair.getPublic());
         time = System.currentTimeMillis() - time;
         
         System.out.println("Request: " + reqAudit + ", cost " + time + "ms");
@@ -148,7 +150,7 @@ public class NonCAPClient extends Client {
         boolean ackAudit = audit(Acknowledgement.class,
                                  ACK_ATTESTATION,
                                  ackAuditFile,
-                                 spKeyPair.getPublic());
+                                 (RSAPublicKey) serviceProviderKeyPair.getPublic());
         time = System.currentTimeMillis() - time;
         
         System.out.println("Ack: " + ackAudit + ", cost " + time + "ms");
@@ -173,9 +175,6 @@ public class NonCAPClient extends Client {
              BufferedReader brAudit = new BufferedReader(frAudit)) {
             String s1, s2;
             
-            Method parse = c.getMethod("parse", String.class);
-            Method validate = c.getMethod("validate", PublicKey.class);
-            
             while (success) {
                 s1 = br.readLine();
                 s2 = brAudit.readLine();
@@ -183,11 +182,11 @@ public class NonCAPClient extends Client {
                 // client side will have one more record about audit operation
                 if (s1 == null || s2 == null) {
                     break;
-                } else if (s1.compareTo(s2) != 0) {
-                    success = false;
                 }
+                
+                success &= s1.equals(s2);
             }
-        } catch (IOException | NoSuchMethodException | SecurityException ex) {
+        } catch (IOException | SecurityException ex) {
             success = false;
             
             LOGGER.log(Level.SEVERE, null, ex);

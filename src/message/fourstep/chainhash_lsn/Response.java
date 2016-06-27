@@ -1,38 +1,42 @@
 package message.fourstep.chainhash_lsn;
 
+import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
+
+import message.MessageType;
 import message.SOAPMessage;
-import org.w3c.dom.NodeList;
 
 /**
  *
  * @author Scott
  */
 public class Response extends SOAPMessage {
-    private static final long serialVersionUID = 20141013L;
+    private static final long serialVersionUID = 20160627L;
     private final Request request;
     private final String result;
     private final String lastChainHash;
     
     public Response(Request req, String result, String hash) {
-        super("response");
+        super(MessageType.Response);
         
         this.request = req;
         this.result = result;
         this.lastChainHash = hash;
         
-        add2Body("request", request.toString());
-        add2Body("result", result);
-        add2Body("chainhash", lastChainHash);
+        super.add2Body(MessageType.Request.name(), request.toString());
+        super.add2Body("result", result);
+        super.add2Body("chainhash", lastChainHash);
     }
     
-    private Response(javax.xml.soap.SOAPMessage message) {
-        super(message);
+    public Response(String rStr, RSAPublicKey publicKey)
+            throws SignatureException {
+        super(rStr, publicKey);
         
-        NodeList body = getBody();
-        
-        this.request = Request.parse(body.item(0).getTextContent());
-        this.result = body.item(1).getTextContent();
-        this.lastChainHash = body.item(2).getTextContent();
+        this.result = String.valueOf(bodyContents.get("result"));
+        this.lastChainHash = String.valueOf(bodyContents.get("chainhash"));
+        this.request = new Request(
+                String.valueOf(bodyContents.get(MessageType.Request.name())),
+                null);
     }
     
     public Request getRequest() {
@@ -51,9 +55,5 @@ public class Response extends SOAPMessage {
     
     public String getChainHash() {
         return lastChainHash;
-    }
-    
-    public static Response parse(String receive) {
-        return new Response(SOAPMessage.parseSOAP(receive));
     }
 }

@@ -1,18 +1,17 @@
 package message;
 
-import java.io.Serializable;
+import java.security.KeyPair;
+import java.security.SignatureException;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.jose4j.jwk.RsaJsonWebKey;
-import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.consumer.InvalidJwtException;
-import org.jose4j.jwt.consumer.JwtConsumer;
 import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.jose4j.lang.JoseException;
 
@@ -20,12 +19,14 @@ import org.jose4j.lang.JoseException;
  *
  * @author Scott
  */
-public class JsonWebToken implements Serializable {
+public class JsonWebToken extends CAPMessage {
     private JsonWebSignature jws;
     private JwtClaims body;
     private boolean dirty;
     
     public JsonWebToken(MessageType type) {
+        super(type);
+        
         jws = new JsonWebSignature();
         body = new JwtClaims();
         
@@ -35,41 +36,60 @@ public class JsonWebToken implements Serializable {
         dirty = false;
     }
     
+    /**
+     * Parse the JWT string into claims and validate its signature by
+     * the public key. If the public key is not given, the verification will
+     * be skipped.
+     * 
+     * @throws SignatureException if the signature is invalid.
+     */
     public JsonWebToken(String jwtString, RSAPublicKey validatePublicKey)
-            throws InvalidJwtException {
+            throws SignatureException {
+        super(jwtString, validatePublicKey);
+        
         jws = new JsonWebSignature();
-        body = JsonWebToken.parseJWT(jwtString, validatePublicKey);
+        try {
+            body = JsonWebToken.parseJWT(jwtString, validatePublicKey);
+        } catch (InvalidJwtException e) {
+            throw new SignatureException(e.getMessage());
+        }
         
         jws.setPayload(body.toJson());
         
         dirty = false;
     }
     
+    @Override
     public void add2Body(String name, String value) {
         body.setClaim(name, value);
         
         dirty = true;
     }
     
-    public void add2Body(LinkedHashMap<String, String> map) {
-        for (Entry<String, String> entry: map.entrySet()) {
+    @Override
+    public void add2Body(String name, Map<String, String> content) {
+        for (Entry<String, String> entry: content.entrySet()) {
             add2Body(entry.getKey(), entry.getValue());
         }
     }
     
-    /**
-     * Sign this JSON web token with the specific key through RS256.
-     */
-    public void sign(RsaJsonWebKey keyPair) {
-        sign(keyPair, AlgorithmIdentifiers.RSA_USING_SHA256);
+    @Override
+    public void sign(KeyPair keyPair, Map<String, String> options) {
+        if (options == null) {
+            throw new NullPointerException("options cannot be null!");
+        }
+        
+        sign((RSAPrivateKey) keyPair.getPrivate(),
+             options.get("keyId"),
+             options.get("signMethod"));
     }
     
     /**
      * Sign this JSON web token with the specific key and signing method.
      */
-    public void sign(RsaJsonWebKey keyPair, String signMethod) {
-        jws.setKeyIdHeaderValue(keyPair.getKeyId());
-        jws.setKey(keyPair.getRsaPrivateKey());
+    public void sign(RSAPrivateKey privateKey, String keyId, String signMethod) {
+        jws.setKey(privateKey);
+        jws.setKeyIdHeaderValue(keyId);
         jws.setAlgorithmHeaderValue(signMethod);
     }
     
@@ -92,11 +112,14 @@ public class JsonWebToken implements Serializable {
     
     public static JwtClaims parseJWT(String jwt, RSAPublicKey publicKey)
             throws InvalidJwtException {
-        JwtConsumer consumer = new JwtConsumerBuilder()
-                .setRequireSubject()
-                .setVerificationKey(publicKey)
-                .build();
+        JwtConsumerBuilder builder = new JwtConsumerBuilder();
         
-        return consumer.processToClaims(jwt);
+        builder.setRequireSubject();
+        
+        if (publicKey != null) {
+            builder.setVerificationKey(publicKey);
+        }
+        
+        return builder.build().processToClaims(jwt);
     }
 }

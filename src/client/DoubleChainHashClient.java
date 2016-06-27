@@ -7,9 +7,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -21,6 +20,7 @@ import message.fourstep.doublechainhash.*;
 import service.Config;
 import service.handler.fourstep.DoubleChainHashHandler;
 import service.DoubleHashingChainTable;
+import service.Key;
 import utility.Utils;
 
 /**
@@ -39,11 +39,11 @@ public class DoubleChainHashClient extends Client {
     private final String id;
     private String lastChainHash;
     
-    public DoubleChainHashClient(String id, KeyPair keyPair, KeyPair spKeyPair) {
+    public DoubleChainHashClient(String id, Key cliKey, Key spKey) {
         super(Config.SERVICE_HOSTNAME,
               Config.DOUBLECHAINHASH_SERVICE_PORT,
-              keyPair,
-              spKeyPair,
+              cliKey,
+              spKey,
               true);
         
         this.id = id;
@@ -59,25 +59,23 @@ public class DoubleChainHashClient extends Client {
             throws SignatureException, IllegalAccessException {
         Request req = new Request(op, op.getClientID());
         
-        req.sign(keyPair);
+        req.sign(clientKeyPair, clientKeyInfo);
 
         Utils.send(out, req.toString());
 
-        Response res = Response.parse(Utils.receive(in));
-
-        if (!res.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("RES validation failure");
-        }
+        Response res = new Response(
+                Utils.receive(in),
+                (RSAPublicKey) serviceProviderKeyPair.getPublic());
 
         String result = null;
 
-        if (lastChainHash.compareTo(res.getClientDeviceLastChainHash()) != 0) {
+        if (!lastChainHash.equals(res.getClientDeviceLastChainHash())) {
             result = "chain hash mismatch";
         }
 
         ReplyResponse rr = new ReplyResponse(res);
 
-        rr.sign(keyPair);
+        rr.sign(clientKeyPair, clientKeyInfo);
 
         Utils.send(out, rr.toString());
 
@@ -85,11 +83,9 @@ public class DoubleChainHashClient extends Client {
             Utils.send(out, new File(Config.DATA_DIR_PATH + '/' + op.getPath()));
         }
 
-        Acknowledgement ack = Acknowledgement.parse(Utils.receive(in));
-
-        if (!ack.validate(spKeyPair.getPublic())) {
-            throw new SignatureException("ACK validation failure");
-        }
+        Acknowledgement ack = new Acknowledgement(
+                Utils.receive(in),
+                (RSAPublicKey) serviceProviderKeyPair.getPublic());
 
         if (result == null) {
             result = ack.getResult();
@@ -112,7 +108,7 @@ public class DoubleChainHashClient extends Client {
 
                 String digest = Utils.digest(file);
 
-                if (ack.getResult().compareTo(digest) == 0) {
+                if (ack.getResult().equals(digest)) {
                     result = "download success";
                 } else {
                     result = "download file digest mismatch";
@@ -136,8 +132,7 @@ public class DoubleChainHashClient extends Client {
     @Override
     public boolean audit(File spFile) {
         boolean success = true;
-        PublicKey spKey = spKeyPair.getPublic();
-        PublicKey cliKey = keyPair.getPublic();
+        RSAPublicKey spKey = (RSAPublicKey) serviceProviderKeyPair.getPublic();
         
         DoubleHashingChainTable hashingChainTab = new DoubleHashingChainTable();
         Map<String, String> mainChainTab = new HashMap<>();
@@ -151,7 +146,7 @@ public class DoubleChainHashClient extends Client {
                     break;
                 }
                 
-                Acknowledgement ack = Acknowledgement.parse(s);
+                Acknowledgement ack = new Acknowledgement(s, spKey);
                 ReplyResponse rr = ack.getReplyResponse();
                 Response res = rr.getResponse();
                 Request req = res.getRequest();
@@ -160,15 +155,12 @@ public class DoubleChainHashClient extends Client {
                 
                 mainChainTab.put(res.getUserLastChainHash(), Utils.digest(res.toString()));
                 
-                if (hashingChainTab.getLastChainHash(clientID).compareTo(
-                    res.getClientDeviceLastChainHash()) == 0) {
+                if (hashingChainTab.getLastChainHash(clientID).equals(
+                    res.getClientDeviceLastChainHash())) {
                     hashingChainTab.chain(clientID, Utils.digest(ack.toString()));
                 } else {
                     success = false;
                 }
-                
-                success &= ack.validate(spKey) & rr.validate(cliKey);
-                success &= res.validate(spKey) & req.validate(cliKey);
             } while (success);
             
             String hash = Config.INITIAL_HASH;
@@ -181,7 +173,7 @@ public class DoubleChainHashClient extends Client {
             }
             
             success &= numFound == mainChainTab.size();
-        } catch (IOException ex) {
+        } catch (SignatureException | IOException ex) {
             success = false;
             
             LOGGER.log(Level.SEVERE, null, ex);

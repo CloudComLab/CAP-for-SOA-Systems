@@ -1,38 +1,42 @@
 package message.fourstep.doublechainhash;
 
+import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
+
+import message.MessageType;
 import message.SOAPMessage;
-import org.w3c.dom.NodeList;
 
 /**
  *
  * @author Scott
  */
 public class Response extends SOAPMessage {
-    private static final long serialVersionUID = 20141013L;
+    private static final long serialVersionUID = 20160627L;
     private final Request request;
     private final String clientDeviceLastChainHash; // ACKj
     private final String userLastChainHash; // Ri-1
     
     public Response(Request req, String hash1, String hash2) {
-        super("response");
+        super(MessageType.Response);
         
         this.request = req;
         this.clientDeviceLastChainHash = hash1;
         this.userLastChainHash = hash2;
         
-        add2Body("request", request.toString());
-        add2Body("result", clientDeviceLastChainHash);
-        add2Body("chainhash", userLastChainHash);
+        super.add2Body(MessageType.Request.name(), request.toString());
+        super.add2Body("result", clientDeviceLastChainHash);
+        super.add2Body("chainhash", userLastChainHash);
     }
     
-    private Response(javax.xml.soap.SOAPMessage message) {
-        super(message);
+    public Response(String rStr, RSAPublicKey publicKey)
+            throws SignatureException {
+        super(rStr, publicKey);
         
-        NodeList body = getBody();
-        
-        this.request = Request.parse(body.item(0).getTextContent());
-        this.clientDeviceLastChainHash = body.item(1).getTextContent();
-        this.userLastChainHash = body.item(2).getTextContent();
+        this.clientDeviceLastChainHash = String.valueOf(bodyContents.get("result"));
+        this.userLastChainHash = String.valueOf(bodyContents.get("chainhash"));
+        this.request = new Request(
+                String.valueOf(bodyContents.get(MessageType.Request.name())),
+                null);
     }
     
     public Request getRequest() {
@@ -45,9 +49,5 @@ public class Response extends SOAPMessage {
     
     public String getUserLastChainHash() {
         return userLastChainHash;
-    }
-    
-    public static Response parse(String receive) {
-        return new Response(SOAPMessage.parseSOAP(receive));
     }
 }

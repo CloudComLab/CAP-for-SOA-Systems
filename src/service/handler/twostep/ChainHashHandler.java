@@ -4,9 +4,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.LinkedList;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -37,23 +36,20 @@ public class ChainHashHandler extends ConnectionHandler {
         LOCK = new ReentrantLock();
     }
     
-    public ChainHashHandler(Socket socket, KeyPair keyPair) {
-        super(socket, keyPair);
+    public ChainHashHandler(Socket socket, Key key) {
+        super(socket, key);
     }
     
     @Override
     protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
-        PublicKey clientPubKey = KeyManager.getInstance().getPublicKey(Key.CLIENT);
+        KeyManager keyManager = KeyManager.getInstance();
+        RSAPublicKey clientPubKey = (RSAPublicKey) keyManager.getPublicKey(Key.CLIENT);
         
         try {
-            Request req = Request.parse(Utils.receive(in));
+            Request req = new Request(Utils.receive(in), clientPubKey);
             
             LOCK.lock();
-            
-            if (!req.validate(clientPubKey)) {
-                throw new SignatureException("REQ validation failure");
-            }
             
             String result;
             
@@ -70,7 +66,7 @@ public class ChainHashHandler extends ConnectionHandler {
 
                     String digest = Utils.digest(file);
 
-                    if (op.getMessage().compareTo(digest) == 0) {
+                    if (op.getMessage().equals(digest)) {
                         result = "ok";
                     } else {
                         result = "upload fail";
@@ -97,9 +93,9 @@ public class ChainHashHandler extends ConnectionHandler {
                     result = "operation type mismatch";
             }
             
-            Acknowledgement ack = new Acknowledgement(result, req, HashingChain.getLast());
+            Acknowledgement ack = new Acknowledgement(result, HashingChain.getLast(), req);
             
-            ack.sign(keyPair);
+            ack.sign(keyPair, keyInfo);
             
             Utils.send(out, ack.toString());
             
