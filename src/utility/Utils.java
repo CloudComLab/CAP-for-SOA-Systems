@@ -323,6 +323,14 @@ public class Utils {
     public static Map<String, Map<String, String>> readKeysInfo(String fname) {
         File keysInfoFile = new File(fname);
         
+        if (!keysInfoFile.exists()) {
+            try {
+                keysInfoFile.createNewFile();
+            } catch (IOException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            }
+        }
+
         try (FileInputStream fis = new FileInputStream(keysInfoFile);
              ObjectInputStream in = new ObjectInputStream(fis)) {
             return (Map<String, Map<String, String>>) in.readObject();
@@ -346,13 +354,13 @@ public class Utils {
             } catch (IOException ex) {
                 LOGGER.log(Level.SEVERE, null, ex);
             }
+        }
 
-            try (FileOutputStream fos = new FileOutputStream(keysInfoFile);
-                 ObjectOutputStream out = new ObjectOutputStream(fos)) {
-                out.writeObject(keysInfo);
-            } catch (IOException ex) {
-                LOGGER.log(Level.SEVERE, null, ex);
-            }
+        try (FileOutputStream fos = new FileOutputStream(keysInfoFile);
+             ObjectOutputStream out = new ObjectOutputStream(fos)) {
+            out.writeObject(keysInfo);
+        } catch (IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
         }
     }
     

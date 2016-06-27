@@ -56,15 +56,13 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.sax.SAXSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.jose4j.jwk.RsaJsonWebKey;
-import org.jose4j.jwk.RsaJwkGenerator;
-import org.jose4j.lang.JoseException;
-
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import service.Key;
+import service.KeyManager;
 
 
 /**
@@ -353,24 +351,22 @@ public class SOAPMessage extends CAPMessage {
     
     public static void main(String[] args) {
         try {
-            RsaJsonWebKey rsaJsonWebKey = RsaJwkGenerator.generateJwk(2048);
-            KeyPair keyPair = new KeyPair(
-                        rsaJsonWebKey.getRsaPublicKey(),
-                        rsaJsonWebKey.getRsaPrivateKey());
+            KeyPair keyPair = KeyManager.getInstance().getKeyPair(Key.CLIENT);
+            Map<String, String> keyInfo = KeyManager.getInstance().getKeyInfo(Key.CLIENT);
 
             SOAPMessage soap = new SOAPMessage(MessageType.Request);
-
+            
             soap.add2Body("name", "scott");
             soap.add2Body("gender", "male");
 
-            soap.sign(keyPair, null);
+            soap.sign(keyPair, keyInfo);
 
             System.out.println(soap);
 
             soap = new SOAPMessage(soap.toString(), (RSAPublicKey) keyPair.getPublic());
             
             System.out.println(soap);
-        } catch (JoseException | SignatureException ex) {
+        } catch (SignatureException ex) {
             LOGGER.log(Level.SEVERE, null, ex);
         }
     }
