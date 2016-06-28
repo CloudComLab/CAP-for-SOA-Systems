@@ -1,6 +1,7 @@
 package message;
 
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  *
@@ -24,11 +25,17 @@ public class Operation {
         this.clientID = clientID;
         
         map = new LinkedHashMap<>();
-        map.put("name", "operation");
         map.put("type", type.toString());
         map.put("path", path);
         map.put("message", msg);
         map.put("clientID", clientID);
+    }
+    
+    public Operation(Map map) {
+        this(OperationType.valueOf(String.valueOf(map.get("type"))),
+             String.valueOf(map.get("path")),
+             String.valueOf(map.get("message")),
+             String.valueOf(map.get("clientID")));
     }
     
     public OperationType getType() {

@@ -9,6 +9,7 @@ import java.security.KeyPair;
 import java.security.SignatureException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -18,6 +19,8 @@ import java.util.logging.Logger;
 import message.Operation;
 import message.OperationType;
 import service.Config;
+import service.Key;
+import service.KeyManager;
 
 /**
  * A base Client class for all CAPs.
@@ -33,20 +36,28 @@ public abstract class Client {
     
     protected final String hostname;
     protected final int port;
-    protected final KeyPair keyPair;
-    protected final KeyPair spKeyPair;
+    
+    protected final KeyPair clientKeyPair;
+    protected final Map<String, String> clientKeyInfo;
+    protected final KeyPair serviceProviderKeyPair;
+    protected final Map<String, String> serviceProviderKeyInfo;
     
     protected ExecutorService pool;
     
     public Client(String hostname,
                   int port,
-                  KeyPair keyPair,
-                  KeyPair spKeyPair,
+                  Key clientKey,
+                  Key serviceProviderKey,
                   boolean supportConcurrency) {
         this.hostname = hostname;
         this.port = port;
-        this.keyPair = keyPair;
-        this.spKeyPair = spKeyPair;
+        
+        KeyManager keyManager = KeyManager.getInstance();
+        
+        this.clientKeyPair = keyManager.getKeyPair(clientKey);
+        this.clientKeyInfo = keyManager.getKeyInfo(clientKey);
+        this.serviceProviderKeyPair = keyManager.getKeyPair(serviceProviderKey);
+        this.serviceProviderKeyInfo = keyManager.getKeyInfo(serviceProviderKey);
         
         if (Config.ENABLE_MULTITHREAD_EXECUTING && supportConcurrency) {
             this.pool = Executors.newFixedThreadPool(Config.NUM_PROCESSORS);

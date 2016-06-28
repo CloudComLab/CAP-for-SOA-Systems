@@ -1,17 +1,17 @@
-package message.fourstep.doublechainhash;
+package message.fourstep.doublechainhash.jwt;
 
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 
+import message.JsonWebToken;
 import message.MessageType;
-import message.SOAPMessage;
 
 /**
  *
  * @author Scott
  */
-public class Response extends SOAPMessage {
-    private static final long serialVersionUID = 20160627L;
+public class Response extends JsonWebToken {
+    private static final long serialVersionUID = 20160628L;
     private final Request request;
     private final String clientDeviceLastChainHash; // ACKj
     private final String userLastChainHash; // Ri-1

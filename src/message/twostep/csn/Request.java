@@ -1,42 +1,39 @@
 package message.twostep.csn;
 
+import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
+import java.util.Map;
+
+import message.MessageType;
 import message.Operation;
-import message.OperationType;
 import message.SOAPMessage;
-import org.w3c.dom.NodeList;
 
 /**
  *
  * @author Scott
  */
 public class Request extends SOAPMessage {
-    private static final long serialVersionUID = 20141021L;
+    private static final long serialVersionUID = 20160627L;
     private final Operation operation;
     private final Integer consecutiveSequenceNumber;
     
     public Request(Operation op, Integer csn) {
-        super("request");
+        super(MessageType.Request);
         
         this.operation = op;
         this.consecutiveSequenceNumber = csn;
         
-        add2Body(operation.toMap());
-        add2Body("CSN", consecutiveSequenceNumber.toString());
+        super.add2Body("operation", operation.toMap());
+        super.add2Body("CSN", consecutiveSequenceNumber.toString());
     }
     
-    private Request(javax.xml.soap.SOAPMessage message) {
-        super(message);
+    public Request(String qStr, RSAPublicKey publicKey)
+            throws SignatureException {
+        super(qStr, publicKey);
         
-        NodeList body = getBody();
-        NodeList operation = body.item(0).getChildNodes();
+        String csn = String.valueOf(bodyContents.get("CSN"));
         
-        OperationType opType = OperationType.valueOf(operation.item(0).getTextContent());
-        String path = operation.item(1).getTextContent();
-        String msg = operation.item(2).getTextContent();
-        
-        String csn = body.item(1).getTextContent();
-        
-        this.operation = new Operation(opType, path, msg);
+        this.operation = new Operation((Map) bodyContents.get("operation"));
         this.consecutiveSequenceNumber = Integer.parseInt(csn);
     }
     
@@ -46,9 +43,5 @@ public class Request extends SOAPMessage {
     
     public Integer getConsecutiveSequenceNumber() {
         return consecutiveSequenceNumber;
-    }
-    
-    public static Request parse(String receive) {
-        return new Request(SOAPMessage.parseSOAP(receive));
     }
 }

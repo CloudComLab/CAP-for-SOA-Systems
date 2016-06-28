@@ -53,7 +53,7 @@ public enum File {
     
     public static File parse(String s) {
         for (File f : File.values()) {
-            if (f.getName().compareTo(s) == 0) {
+            if (f.getName().equals(s)) {
                 return f;
             }
         }

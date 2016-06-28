@@ -1,36 +1,36 @@
-package message.twostep.chainhash;
+package message.fourstep.chainhash_lsn.jwt;
 
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 
+import message.JsonWebToken;
 import message.MessageType;
-import message.SOAPMessage;
 
 /**
  *
  * @author Scott
  */
-public class Acknowledgement extends SOAPMessage {
-    private static final long serialVersionUID = 20160627L;
+public class Response extends JsonWebToken {
+    private static final long serialVersionUID = 20160628L;
+    private final Request request;
     private final String result;
     private final String lastChainHash;
-    private final Request request;
     
-    public Acknowledgement(String result, String hash, Request req) {
-        super(MessageType.Acknowledgement);
+    public Response(Request req, String result, String hash) {
+        super(MessageType.Response);
         
+        this.request = req;
         this.result = result;
         this.lastChainHash = hash;
-        this.request = req;
         
+        super.add2Body(MessageType.Request.name(), request.toString());
         super.add2Body("result", result);
         super.add2Body("chainhash", lastChainHash);
-        super.add2Body(MessageType.Request.name(), req.toString());
     }
     
-    public Acknowledgement(String ackStr, RSAPublicKey publicKey)
+    public Response(String rStr, RSAPublicKey publicKey)
             throws SignatureException {
-        super(ackStr, publicKey);
+        super(rStr, publicKey);
         
         this.result = String.valueOf(bodyContents.get("result"));
         this.lastChainHash = String.valueOf(bodyContents.get("chainhash"));
@@ -39,12 +39,18 @@ public class Acknowledgement extends SOAPMessage {
                 null);
     }
     
+    public Request getRequest() {
+        return request;
+    }
+    
+    // for C&L
     public String getResult() {
         return result;
     }
     
-    public Request getRequest() {
-        return request;
+    // for DC&L
+    public String getClientLastChainHash() {
+        return result;
     }
     
     public String getChainHash() {

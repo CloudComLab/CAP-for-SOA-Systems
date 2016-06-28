@@ -18,9 +18,12 @@ import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import service.Config;
 
 public class Utils {
@@ -261,6 +264,7 @@ public class Utils {
     /**
      * Generates a KeyPair randomly.
      */
+    @Deprecated
     public static KeyPair randomGenerateKeyPair() {
         KeyPair keyPair = null;
         
@@ -310,6 +314,53 @@ public class Utils {
             } catch (IOException ex) {
                 LOGGER.log(Level.SEVERE, null, ex);
             }
+        }
+    }
+    
+    /**
+     * Reads informations of keys from specific file.
+     */
+    public static Map<String, Map<String, String>> readKeysInfo(String fname) {
+        File keysInfoFile = new File(fname);
+        
+        if (!keysInfoFile.exists()) {
+            try {
+                keysInfoFile.createNewFile();
+            } catch (IOException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            }
+        }
+
+        try (FileInputStream fis = new FileInputStream(keysInfoFile);
+             ObjectInputStream in = new ObjectInputStream(fis)) {
+            return (Map<String, Map<String, String>>) in.readObject();
+        } catch (IOException | ClassNotFoundException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        }
+        
+        return new HashMap<>();
+    }
+    
+    /**
+     * Write informations of keys to specific file.
+     */
+    public static void writeKeysInfo(String fname,
+                                     Map<String, Map<String, String>> keysInfo) {
+        File keysInfoFile = new File(fname);
+
+        if (!keysInfoFile.exists()) {
+            try {
+                keysInfoFile.createNewFile();
+            } catch (IOException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            }
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(keysInfoFile);
+             ObjectOutputStream out = new ObjectOutputStream(fos)) {
+            out.writeObject(keysInfo);
+        } catch (IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
         }
     }
     

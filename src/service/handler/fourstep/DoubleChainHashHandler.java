@@ -5,9 +5,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.SignatureException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -37,26 +36,23 @@ public class DoubleChainHashHandler extends ConnectionHandler {
         LOCK = new ReentrantLock();
     }
     
-    public DoubleChainHashHandler(Socket socket, KeyPair keyPair) {
-        super(socket, keyPair);
+    public DoubleChainHashHandler(Socket socket, Key key) {
+        super(socket, key);
     }
     
     @Override
     protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
-        PublicKey clientPubKey = KeyManager.getInstance().getPublicKey(Key.CLIENT);
+        KeyManager keyManager = KeyManager.getInstance();
+        RSAPublicKey clientPubKey = (RSAPublicKey) keyManager.getPublicKey(Key.CLIENT);
         Lock lock = null;
         
         try {
-            Request req = Request.parse(Utils.receive(in));
+            Request req = new Request(Utils.receive(in), clientPubKey);
             String result, clientID;
             
             LOCK.lock();
             try {
-                if (!req.validate(clientPubKey)) {
-                    throw new SignatureException("REQ validation failure");
-                }
-
                 clientID = req.getClientID();
 
                 String lastChainHash = HASHING_CHAIN_TABLE.getLastChainHash(clientID);
@@ -64,7 +60,7 @@ public class DoubleChainHashHandler extends ConnectionHandler {
 
                 Response res = new Response(req, lastChainHash, lastChainHashOfAll);
 
-                res.sign(keyPair);
+                res.sign(keyPair, keyInfo);
 
                 Utils.send(out, res.toString());
 
@@ -73,11 +69,7 @@ public class DoubleChainHashHandler extends ConnectionHandler {
                 LOCK.unlock();
             }
             
-            ReplyResponse rr = ReplyResponse.parse(Utils.receive(in));
-            
-            if (!rr.validate(clientPubKey)) {
-                throw new SignatureException("RR validation failure");
-            }
+            ReplyResponse rr = new ReplyResponse(Utils.receive(in), clientPubKey);
             
             Operation op = req.getOperation();
 
@@ -108,7 +100,7 @@ public class DoubleChainHashHandler extends ConnectionHandler {
 
                     String digest = Utils.digest(file);
 
-                    if (op.getMessage().compareTo(digest) == 0) {
+                    if (op.getMessage().equals(digest)) {
                         result = "ok";
                     } else {
                         result = "upload fail";
@@ -137,7 +129,7 @@ public class DoubleChainHashHandler extends ConnectionHandler {
             
             Acknowledgement ack = new Acknowledgement(result, rr);
             
-            ack.sign(keyPair);
+            ack.sign(keyPair, keyInfo);
             
             String ackStr = ack.toString();
             

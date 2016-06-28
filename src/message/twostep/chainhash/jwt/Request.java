@@ -1,19 +1,19 @@
-package message.twostep.chainhash;
+package message.twostep.chainhash.jwt;
 
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Map;
 
+import message.JsonWebToken;
 import message.MessageType;
 import message.Operation;
-import message.SOAPMessage;
 
 /**
  *
  * @author Scott
  */
-public class Request extends SOAPMessage {
-    private static final long serialVersionUID = 20160627L;
+public class Request extends JsonWebToken {
+    private static final long serialVersionUID = 20160628L;
     private final Operation operation;
     
     public Request(Operation op) {

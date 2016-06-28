@@ -1,17 +1,16 @@
 package service.handler;
 
-import message.noncap.Request;
-import message.noncap.Acknowledgement;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.net.Socket;
-import java.security.KeyPair;
 import java.security.SignatureException;
 import java.util.concurrent.locks.ReentrantLock;
 
+import message.noncap.*;
 import message.Operation;
 import service.Config;
+import service.Key;
 import utility.Utils;
 
 /**
@@ -31,17 +30,17 @@ public class NonCAPHandler extends ConnectionHandler {
         LOCK = new ReentrantLock();
     }
     
-    public NonCAPHandler(Socket socket, KeyPair keyPair) {
-        super(socket, keyPair);
+    public NonCAPHandler(Socket socket, Key key) {
+        super(socket, key);
     }
     
     @Override
     protected void handle(DataOutputStream out, DataInputStream in)
             throws SignatureException, IllegalAccessException {
+        LOCK.lock();
+        
         try {
-            Request req = Request.parse(Utils.receive(in));
-            
-            LOCK.lock();
+            Request req = new Request(Utils.receive(in), null);
             
             String result;
             
@@ -58,7 +57,7 @@ public class NonCAPHandler extends ConnectionHandler {
 
                     String digest = Utils.digest(file, Config.DIGEST_ALGORITHM);
 
-                    if (op.getMessage().compareTo(digest) == 0) {
+                    if (op.getMessage().equals(digest)) {
                         result = "ok";
                     } else {
                         result = "upload fail";

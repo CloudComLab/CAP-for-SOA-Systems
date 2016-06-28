@@ -28,7 +28,6 @@ public class SocketServer extends Thread {
     private ServerSocket serverSocket;
     private ExecutorService pool;
     private Constructor handlerCtor;
-    private KeyPair keyPair;
     
     public SocketServer(Class handler) {
         this(handler, 3000);
@@ -38,12 +37,10 @@ public class SocketServer extends Thread {
         this.port = port;
         
         try {
-            this.handlerCtor = handler.getDeclaredConstructor(Socket.class, KeyPair.class);
+            this.handlerCtor = handler.getDeclaredConstructor(Socket.class, Key.class);
         } catch (NoSuchMethodException | SecurityException ex) {
             Logger.getLogger(SocketServer.class.getName()).log(Level.SEVERE, null, ex);
         }
-        
-        keyPair = KeyManager.getInstance().getKeyPair(Key.SERVICE_PROVIDER);
     }
     
     @Override
@@ -55,7 +52,7 @@ public class SocketServer extends Thread {
             do {
                 Socket socket = serverSocket.accept();
                 
-                pool.execute((Runnable) handlerCtor.newInstance(socket, keyPair));
+                pool.execute((Runnable) handlerCtor.newInstance(socket, Key.SERVICE_PROVIDER));
             } while (true);
         } catch (IOException ex) {
             Logger.getLogger(SocketServer.class.getName()).log(Level.SEVERE, null, ex);

@@ -1,17 +1,17 @@
-package message.fourstep.chainhash_lsn;
+package message.fourstep.chainhash_lsn.jwt;
 
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
 
+import message.JsonWebToken;
 import message.MessageType;
-import message.SOAPMessage;
 
 /**
  *
  * @author Scott
  */
-public class ReplyResponse extends SOAPMessage {
-    private static final long serialVersionUID = 20160627L;
+public class ReplyResponse extends JsonWebToken {
+    private static final long serialVersionUID = 20160628L;
     private final Response response;
     
     public ReplyResponse(Response res) {
