@@ -4,13 +4,17 @@ import java.security.KeyPair;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jws.AlgorithmIdentifiers;
 
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.jwt.JwtClaims;
+import org.jose4j.jwt.MalformedClaimException;
 import org.jose4j.jwt.consumer.InvalidJwtException;
 import org.jose4j.jwt.consumer.JwtConsumerBuilder;
 import org.jose4j.lang.JoseException;
@@ -54,9 +58,36 @@ public class JsonWebToken extends CAPMessage {
             throw new SignatureException(e.getMessage());
         }
         
+        initContents();
         jws.setPayload(body.toJson());
         
         dirty = false;
+    }
+    
+    @Override
+    protected void initContents() {
+        for (String claimName: body.getClaimNames()) {
+            try {
+                if (claimName.contains("__")) {
+                    int delimPos = claimName.indexOf("__");
+                    String prefix = claimName.substring(0, delimPos);
+                    String name = claimName.substring(delimPos + 2);
+
+                    Map<String, String> subContents = (Map<String, String>) bodyContents.get(prefix);
+
+                    if (subContents == null) {
+                        subContents = new HashMap<>();
+                    }
+
+                    subContents.put(name, body.getStringClaimValue(claimName));
+                    bodyContents.put(prefix, subContents);
+                } else {
+                    bodyContents.put(claimName, body.getStringClaimValue(claimName));
+                }
+            } catch (MalformedClaimException ex) {
+                Logger.getLogger(JsonWebToken.class.getName()).log(Level.SEVERE, null, ex);
+            } 
+        }
     }
     
     @Override
@@ -69,7 +100,7 @@ public class JsonWebToken extends CAPMessage {
     @Override
     public void add2Body(String name, Map<String, String> content) {
         for (Entry<String, String> entry: content.entrySet()) {
-            add2Body(entry.getKey(), entry.getValue());
+            add2Body(name + "__" + entry.getKey(), entry.getValue());
         }
     }
     
@@ -81,20 +112,24 @@ public class JsonWebToken extends CAPMessage {
         
         sign((RSAPrivateKey) keyPair.getPrivate(),
              options.get("keyId"),
-             options.get("signMethod"));
+             options.get("algorithm"));
     }
     
     /**
-     * Sign this JSON web token with the specific key and signing method.
+     * Sign this JSON web token with the specific key and signing algorithm.
      */
-    public void sign(RSAPrivateKey privateKey, String keyId, String signMethod) {
+    public void sign(RSAPrivateKey privateKey, String keyId, String algorithm) {
         jws.setKey(privateKey);
         jws.setKeyIdHeaderValue(keyId);
-        jws.setAlgorithmHeaderValue(signMethod);
+        jws.setAlgorithmHeaderValue(algorithm);
     }
     
     @Override
     public String toString() {
+        if (originMessage != null) {
+            return originMessage;
+        }
+        
         try {
             if (dirty) {
                 jws.setPayload(body.toJson());
@@ -102,7 +137,14 @@ public class JsonWebToken extends CAPMessage {
                 dirty = false;
             }
             
-            return jws.getCompactSerialization();
+            if (jws.getAlgorithmHeaderValue() == null) {
+                jws.setAlgorithmConstraints(AlgorithmConstraints.NO_CONSTRAINTS);
+                jws.setAlgorithmHeaderValue(AlgorithmIdentifiers.NONE);
+            }
+            
+            originMessage = jws.getCompactSerialization();
+            
+            return originMessage;
         } catch (JoseException ex) {
             Logger.getLogger(JsonWebToken.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -118,6 +160,10 @@ public class JsonWebToken extends CAPMessage {
         
         if (publicKey != null) {
             builder.setVerificationKey(publicKey);
+        } else {
+            builder.setDisableRequireSignature();
+            builder.setSkipSignatureVerification();
+            builder.setJwsAlgorithmConstraints(AlgorithmConstraints.NO_CONSTRAINTS);
         }
         
         return builder.build().processToClaims(jwt);

@@ -145,8 +145,7 @@ public class ChainHashAndLSNClient extends Client {
                     success = false;
                 }
                 
-                if (hashingChainTab.getLastChainHash(clientID).compareTo(
-                    res.getChainHash()) == 0) {
+                if (hashingChainTab.getLastChainHash(clientID).equals(res.getChainHash())) {
                     hashingChainTab.chain(clientID, Utils.digest(ack.toString()));
                 } else {
                     success = false;

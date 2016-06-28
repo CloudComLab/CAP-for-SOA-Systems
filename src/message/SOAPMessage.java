@@ -89,8 +89,6 @@ public class SOAPMessage extends CAPMessage {
     protected javax.xml.soap.SOAPBody body;
     protected Node root;
     
-    protected Map bodyContents;
-    
     public SOAPMessage(MessageType type) {
         super(type);
         
@@ -174,9 +172,8 @@ public class SOAPMessage extends CAPMessage {
         }
     }
     
-    private void initContents() {
-        bodyContents = new LinkedHashMap();
-        
+    @Override
+    protected void initContents() {
         NodeList bodyNodes = getBody();
         for (int i = 0; i < bodyNodes.getLength(); i++) {
             Node node = bodyNodes.item(i);

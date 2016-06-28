@@ -14,8 +14,7 @@ import java.util.logging.Logger;
 
 import message.Operation;
 import message.OperationType;
-import message.twostep.chainhash.Acknowledgement;
-import message.twostep.chainhash.Request;
+import message.twostep.chainhash.*;
 import service.Config;
 import service.Key;
 import service.handler.twostep.ChainHashHandler;
@@ -71,7 +70,7 @@ public class ChainHashClient extends Client {
         String chainHash = ack.getChainHash();
         String fname = "";
 
-        if (chainHash.compareTo(lastChainHash) != 0) {
+        if (!chainHash.equals(lastChainHash)) {
             throw new IllegalAccessException("Chain hash mismatch");
         }
 
@@ -131,7 +130,7 @@ public class ChainHashClient extends Client {
                 } else {
                     success = false;
                 }
-            } while (success && chainhash.compareTo(lastChainHash) != 0);
+            } while (success && !chainhash.equals(lastChainHash));
         } catch (SignatureException | NullPointerException | IOException ex) {
             success = false;
             

@@ -1,17 +1,12 @@
 package client;
 
-import message.noncap.Request;
-import message.noncap.Acknowledgement;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.Socket;
-import java.security.KeyPair;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPublicKey;
@@ -20,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import message.noncap.*;
 import message.Operation;
 import message.OperationType;
 import service.Config;

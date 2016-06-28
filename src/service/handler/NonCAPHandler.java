@@ -1,7 +1,5 @@
 package service.handler;
 
-import message.noncap.Request;
-import message.noncap.Acknowledgement;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -9,6 +7,7 @@ import java.net.Socket;
 import java.security.SignatureException;
 import java.util.concurrent.locks.ReentrantLock;
 
+import message.noncap.*;
 import message.Operation;
 import service.Config;
 import service.Key;

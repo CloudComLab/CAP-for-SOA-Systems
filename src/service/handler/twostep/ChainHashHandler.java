@@ -46,10 +46,10 @@ public class ChainHashHandler extends ConnectionHandler {
         KeyManager keyManager = KeyManager.getInstance();
         RSAPublicKey clientPubKey = (RSAPublicKey) keyManager.getPublicKey(Key.CLIENT);
         
+        LOCK.lock();
+        
         try {
             Request req = new Request(Utils.receive(in), clientPubKey);
-            
-            LOCK.lock();
             
             String result;
             
